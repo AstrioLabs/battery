@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Battery Charge</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #e8eaf6 0%, #f5f5f5 100%);
+            width: 390px;
+            height: 844px;
+            position: relative;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .time {
+            font-size: 16px;
+            font-weight: 300;
+            color: #333;
+            letter-spacing: 0.3px;
+        }
+
+        .battery-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .battery-percentage {
+            font-size: 14px;
+            font-weight: 400;
+            color: #333;
+        }
+
+        /* Small Battery Icon (top right) */
+        .small-battery {
+            width: 28px;
+            height: 14px;
+            border: 1.5px solid #333;
+            border-radius: 3px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 2px;
+        }
+
+        .small-battery::after {
+            content: '';
+            position: absolute;
+            right: -4px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 2px;
+            height: 6px;
+            background: #333;
+            border-radius: 0 2px 2px 0;
+        }
+
+        .small-battery-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff3b30 0%, #ff9500 50%, #4cd964 100%);
+            border-radius: 1px;
+            transition: width 0.2s ease, background 0.3s ease;
+        }
+
+        /* Center Battery */
+        .center-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .large-battery {
+            width: 200px;
+            height: 320px;
+            border: 4px solid #333;
+            border-radius: 20px;
+            position: relative;
+            cursor: pointer;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .large-battery::before {
+            content: '';
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 20px;
+            background: #333;
+            border-radius: 0 0 10px 10px;
+        }
+
+        .large-battery-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 0%;
+            background: linear-gradient(180deg, #4cd964 0%, #34c759 100%);
+            transition: height 0.1s ease-out;
+        }
+
+        .large-battery-fill.charging {
+            box-shadow: 0 0 30px rgba(76, 217, 100, 0.6);
+        }
+
+        .large-battery-percentage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: 300;
+            color: #333;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        /* Instruction Text */
+        .instruction {
+            font-size: 16px;
+            font-weight: 300;
+            color: #666;
+            text-align: center;
+            opacity: 0.8;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        /* Charging Effect */
+        .charging-effect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at center, rgba(76, 217, 100, 0.2) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .charging-effect.active {
+            opacity: 1;
+            animation: glow 1.5s ease-in-out infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        /* Low Battery Warning */
+        .large-battery-fill.low {
+            background: linear-gradient(180deg, #ff3b30 0%, #ff2d2d 100%);
+        }
+
+        .small-battery-fill.low {
+            background: #ff3b30;
+        }
+    </style>
+</head>
+<body>
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="time" id="currentTime">00:00</div>
+        <div class="battery-status">
+            <span class="battery-percentage" id="smallPercentage">7%</span>
+            <div class="small-battery">
+                <div class="small-battery-fill low" id="smallBatteryFill" style="width: 7%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Center Battery -->
+    <div class="center-container">
+        <div class="large-battery" id="largeBattery">
+            <div class="large-battery-fill low" id="largeBatteryFill"></div>
+            <div class="large-battery-percentage" id="largePercentage">7%</div>
+            <div class="charging-effect" id="chargingEffect"></div>
+        </div>
+        <div class="instruction" id="instruction">Swipe up to charge</div>
+    </div>
+
+    <script>
+        // Update time
+        function updateTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('currentTime').textContent = `${hours}:${minutes}`;
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        // Battery charging logic
+        let currentPercentage = 7;
+        let isCharging = false;
+        let startY = 0;
+        let currentY = 0;
+        let accumulatedCharge = 0;
+
+        const largeBattery = document.getElementById('largeBattery');
+        const largeBatteryFill = document.getElementById('largeBatteryFill');
+        const largePercentage = document.getElementById('largePercentage');
+        const smallBatteryFill = document.getElementById('smallBatteryFill');
+        const smallPercentage = document.getElementById('smallPercentage');
+        const chargingEffect = document.getElementById('chargingEffect');
+        const instruction = document.getElementById('instruction');
+
+        function updateBattery(percentage) {
+            percentage = Math.max(0, Math.min(100, percentage));
+            currentPercentage = Math.round(percentage);
+
+            // Update fills
+            largeBatteryFill.style.height = `${currentPercentage}%`;
+            smallBatteryFill.style.width = `${currentPercentage}%`;
+
+            // Update percentages
+            largePercentage.textContent = `${currentPercentage}%`;
+            smallPercentage.textContent = `${currentPercentage}%`;
+
+            // Update colors based on battery level
+            if (currentPercentage < 20) {
+                largeBatteryFill.classList.add('low');
+                smallBatteryFill.classList.add('low');
+            } else {
+                largeBatteryFill.classList.remove('low');
+                smallBatteryFill.classList.remove('low');
+            }
+
+            // Hide instruction when charged
+            if (currentPercentage >= 95) {
+                instruction.style.opacity = '0';
+            }
+        }
+
+        function handleStart(e) {
+            isCharging = true;
+            startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+            currentY = startY;
+            chargingEffect.classList.add('active');
+            largeBatteryFill.classList.add('charging');
+        }
+
+        function handleMove(e) {
+            if (!isCharging) return;
+
+            e.preventDefault();
+            currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+
+            // Calculate swipe distance (negative because swiping up)
+            const swipeDistance = startY - currentY;
+
+            // Only charge on upward swipes
+            if (swipeDistance > 0) {
+                // Convert distance to percentage (200px = 100% charge)
+                const chargeAmount = (swipeDistance / 200) * 100;
+                const newPercentage = currentPercentage + chargeAmount - accumulatedCharge;
+
+                if (newPercentage <= 100) {
+                    updateBattery(newPercentage);
+                    accumulatedCharge = chargeAmount;
+                }
+            }
+        }
+
+        function handleEnd(e) {
+            if (!isCharging) return;
+
+            isCharging = false;
+            chargingEffect.classList.remove('active');
+            largeBatteryFill.classList.remove('charging');
+
+            // Finalize the charge
+            const swipeDistance = startY - currentY;
+            if (swipeDistance > 0) {
+                const chargeAmount = (swipeDistance / 200) * 100;
+                currentPercentage = Math.min(100, currentPercentage + chargeAmount - accumulatedCharge);
+                updateBattery(currentPercentage);
+            }
+
+            accumulatedCharge = 0;
+        }
+
+        // Touch events
+        largeBattery.addEventListener('touchstart', handleStart, { passive: false });
+        largeBattery.addEventListener('touchmove', handleMove, { passive: false });
+        largeBattery.addEventListener('touchend', handleEnd);
+        largeBattery.addEventListener('touchcancel', handleEnd);
+
+        // Mouse events (fallback)
+        largeBattery.addEventListener('mousedown', handleStart);
+        document.addEventListener('mousemove', handleMove);
+        document.addEventListener('mouseup', handleEnd);
+
+        // Initialize
+        updateBattery(7);
+    </script>
+</body>
+</html>
